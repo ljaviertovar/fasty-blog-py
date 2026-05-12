@@ -24,8 +24,9 @@ COPY . .
 # Copy built static assets from node stage
 COPY --from=nodebuild /app/static ./static
 
-# Install Python dependencies. Prefer requirements.txt, fallback to installing package
-RUN bash -lc "python -m pip install --upgrade pip && (if [ -f requirements.txt ]; then pip install --no-cache-dir -r requirements.txt; else pip install --no-cache-dir .; fi)"
+# Install Python dependencies from requirements.txt
+COPY requirements.txt .
+RUN python -m pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
 
 EXPOSE 8000
 

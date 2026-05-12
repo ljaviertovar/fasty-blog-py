@@ -1,4 +1,4 @@
-FROM node:18 AS nodebuild
+FROM node:20 AS nodebuild
 WORKDIR /app
 
 # Install Node deps and build TailwindCSS assets.

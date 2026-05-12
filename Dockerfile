@@ -1,9 +1,12 @@
 FROM node:18 AS nodebuild
 WORKDIR /app
 
-# Build TailwindCSS assets
+# Install Node deps and build TailwindCSS assets.
+# Copy only package files first to leverage Docker cache and avoid copying node_modules from host.
+COPY tailwindcss/package*.json ./tailwindcss/
+RUN cd tailwindcss && npm ci
 COPY tailwindcss/ ./tailwindcss/
-RUN cd tailwindcss && npm ci && (npm run build || npx tailwindcss -i input.css -o ../static/css/main.css --minify)
+RUN cd tailwindcss && (npm run build:css || npx tailwindcss -i input.css -o ../static/css/main.css --minify)
 
 FROM python:3.11-slim
 WORKDIR /app

@@ -216,3 +216,22 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Tailwind / NPM (kept inside the tailwindcss/ subfolder)
+# Ignore Node modules for the local Tailwind/NPM workspace
+/tailwindcss/node_modules/
+
+# Optional lockfile for the Tailwind workspace (uncomment to ignore if you don't want to commit it)
+#/tailwindcss/package-lock.json
+
+# Tailwind build outputs and caches
+/tailwindcss/.cache/
+/tailwindcss/dist/
+
+# Generated CSS (don't commit build output)
+/static/css/main.css
+
+# NPM debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

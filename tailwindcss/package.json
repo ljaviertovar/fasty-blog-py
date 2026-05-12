@@ -1,0 +1,13 @@
+{
+  "name": "fasty-blog-py",
+  "version": "1.0.0",
+  "private": true,
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.0.0",
+    "tailwindcss": "^4.3.0"
+  },
+  "scripts": {
+    "build:css": "tailwindcss -i ./input.css -o ../static/css/main.css --minify",
+    "watch:css": "tailwindcss -i ./input.css -o ../static/css/main.css --watch"
+  }
+}

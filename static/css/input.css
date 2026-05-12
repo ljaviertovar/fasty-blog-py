@@ -1,0 +1,10 @@
+@import "tailwindcss";
+
+@variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-body: "Nunito", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-heading: "Montserrat", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --color-steel: #527c9f;
+  --color-steel-dark: #3d6a8a;
+}

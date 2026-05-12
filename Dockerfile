@@ -2,9 +2,11 @@ FROM node:18 AS nodebuild
 WORKDIR /app
 
 # Install Node deps and build TailwindCSS assets.
+# Ensure devDependencies (tailwind CLI) are installed during the build stage.
+ENV NODE_ENV=development
 # Copy only package files first to leverage Docker cache and avoid copying node_modules from host.
 COPY tailwindcss/package*.json ./tailwindcss/
-RUN cd tailwindcss && npm ci
+RUN cd tailwindcss && npm ci --no-audit --no-fund
 COPY tailwindcss/ ./tailwindcss/
 RUN cd tailwindcss && (npm run build:css || npx tailwindcss -i input.css -o ../static/css/main.css --minify)
 

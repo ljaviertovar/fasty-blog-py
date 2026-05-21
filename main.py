@@ -5,7 +5,6 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from starlette.exceptions import HTTPException as StarletteHTTPException
-from schemas import PostCreate, PostResponse
 from typing import Annotated
 
 from sqlalchemy import select
@@ -13,7 +12,7 @@ from sqlalchemy.orm import Session
 
 import models
 from database import Base, engine, get_db
-from schemas import PostCreate, PostResponse, UserResponse, UserCreate
+from schemas import PostCreate, PostResponse, PostUpdate, UserResponse, UserCreate
 
 
 Base.metadata.create_all(bind=engine)
@@ -131,6 +130,45 @@ def create_post(post: PostCreate, db: Annotated[Session, Depends(get_db)]):
     db.commit()
     db.refresh(new_post)
     return new_post
+
+@app.put("/api/posts/{post_id}", response_model=PostResponse)
+def update_post_full(post_id: int, post_data: PostCreate, db: Annotated[Session, Depends(get_db)]):
+    result = db.execute(select(models.Post).where(models.Post.id == post_id))
+    existing_post = result.scalars().first()
+
+    if existing_post is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")
+
+    if existing_post.user_id != post_data.user_id:
+        result = db.execute(select(models.User).where(models.User.id == post_data.user_id))
+        user = result.scalars().first()
+
+        if user is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    existing_post.title = post_data.title
+    existing_post.content = post_data.content
+    existing_post.user_id = post_data.user_id
+
+    db.commit()
+    db.refresh(existing_post)
+    return existing_post
+
+@app.patch("/api/posts/{post_id}", response_model=PostResponse)
+def update_post_partial(post_id: int, post_data: PostCreate, db: Annotated[Session, Depends(get_db)]):
+    result = db.execute(select(models.Post).where(models.Post.id == post_id))
+    existing_post = result.scalars().first()
+
+    if existing_post is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")
+
+    update_data = post_data.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(existing_post, field, value)
+
+    db.commit()
+    db.refresh(existing_post)
+    return existing_post
 
 
 #====== Custom error handlers ======

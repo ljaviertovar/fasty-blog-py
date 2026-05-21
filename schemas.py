@@ -16,13 +16,17 @@ class UserResponse(UserBase):
     image_path: str
     image_file: str | None
 
-
+#====== Post schemas ======
 class PostBase(BaseModel):
     title: str = Field(min_length=2, max_length=100)
     content: str = Field(min_length=1)
 
 class PostCreate(PostBase):
     user_id: int
+
+class PostUpdate(BaseModel):
+    title: str | None = Field(default=None, min_length=2, max_length=100)
+    content: str | None = Field(default=None, min_length=1)
 
 class PostResponse(PostBase):
     model_config = ConfigDict(from_attributes=True)

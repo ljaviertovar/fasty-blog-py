@@ -15,7 +15,7 @@
       >
         <a
           class="text-steel dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 font-medium"
-          href="#"
+          href="{{ url_for('user_posts_page', user_id=post.author.id) }}"
           >{{ post.author.username }}</a
         >
         <small class="text-gray-500 dark:text-gray-400 text-xs"

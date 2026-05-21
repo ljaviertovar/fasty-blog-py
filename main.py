@@ -45,7 +45,7 @@ def post_detail(request: Request, post_id: int, db: Annotated[Session, Depends(g
     return templates.TemplateResponse(request, "post.html", {"title": post.title[:50], "post": post})
 
 
-@app.get("/users/{user_id}/posts", include_in_schema=False, name="user_posts")
+@app.get("/users/{user_id}/posts", include_in_schema=False, name="user_posts_page")
 def user_posts(request: Request, user_id: int, db: Annotated[Session, Depends(get_db)]):
     result = db.execute(select(models.User).where(models.User.id == user_id))
     user = result.scalars().first()

@@ -1,0 +1,38 @@
+{% extends "layout.html" %} {% block content %}
+<h1 class="mb-4 text-2xl font-semibold">Posts by {{ user.username }}</h1>
+{% for post in posts %}
+<article class="py-3 px-4 mb-4 bg-white rounded-lg shadow-sm">
+  <div class="flex items-start gap-4">
+    <img
+      class="w-16 h-16 rounded-full object-cover flex-shrink-0"
+      src="{{ post.author.image_path }}"
+      alt="{{ post.author.username }}'s profile picture"
+      width="64"
+      height="64"
+      loading="lazy"
+    />
+    <div class="flex-grow">
+      <div class="mb-2 text-sm text-gray-600">
+        <a
+          class="mr-2 font-medium text-blue-600 hover:underline"
+          href="{{ url_for('user_posts', user_id=post.author.id) }}"
+          >{{ post.author.username }}</a
+        >
+        <small class="text-gray-500"
+          >{{ post.date_posted.strftime("%B %d, %Y") }}</small
+        >
+      </div>
+      <h2 class="text-xl font-bold">
+        <a
+          class="text-gray-900 hover:text-blue-600"
+          href="{{ url_for('post_page', post_id=post.id) }}"
+          >{{ post.title }}</a
+        >
+      </h2>
+      <p class="text-gray-700 mt-2">{{ post.content }}</p>
+    </div>
+  </div>
+</article>
+{% else %}
+<p class="text-gray-500">No posts by this user yet.</p>
+{% endfor %} {% endblock content %}

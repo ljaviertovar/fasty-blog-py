@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 import models
 from database import Base, engine, get_db
-from schemas import PostCreate, PostResponse, PostUpdate, UserResponse, UserCreate
+from schemas import PostCreate, PostResponse, PostUpdate, UserResponse, UserCreate, UserUpdate
 
 
 Base.metadata.create_all(bind=engine)
@@ -101,6 +101,64 @@ def get_user_posts(user_id: int, db: Annotated[Session, Depends(get_db)]):
     posts = result.scalars().all()
     return posts
 
+@app.patch("/api/users/{user_id}", response_model=UserResponse)
+def update_user_full(user_id: int, user_data: UserUpdate, db: Annotated[Session, Depends(get_db)]):
+    result = db.execute(select(models.User).where(models.User.id == user_id))
+    existing_user = result.scalars().first()
+    if existing_user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    if existing_user.username != user_data.username:
+        result = db.execute(select(models.User).where(models.User.username == user_data.username))
+        user_with_username = result.scalars().first()
+
+        if user_with_username:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username already exists")
+
+    if existing_user.email != user_data.email:
+        result = db.execute(select(models.User).where(models.User.email == user_data.email))
+        user_with_email = result.scalars().first()
+
+        if user_with_email:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already exists")
+
+    if user_data.username is not None:
+        existing_user.username = user_data.username
+    if user_data.email is not None:
+        existing_user.email = user_data.email
+    if user_data.image_file is not None:
+        existing_user.image_file = user_data.image_file
+
+    db.commit()
+    db.refresh(existing_user)
+    return existing_user
+
+@app.patch("/api/users/{user_id}", response_model=UserResponse)
+def update_user_partial(user_id: int, user_data: UserUpdate, db: Annotated[Session, Depends(get_db)]):
+    result = db.execute(select(models.User).where(models.User.id == user_id))
+    existing_user = result.scalars().first()
+    if existing_user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    update_data = user_data.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(existing_user, field, value)
+
+    db.commit()
+    db.refresh(existing_user)
+    return existing_user
+
+@app.delete("/api/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_user(user_id: int, db: Annotated[Session, Depends(get_db)]):
+    result = db.execute(select(models.User).where(models.User.id == user_id))
+    user = result.scalars().first()
+
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    db.delete(user)
+    db.commit()
+    return JSONResponse(status_code=status.HTTP_204_NO_CONTENT, content=None)
 
 # Post endpoints
 @app.get("/api/posts", response_model=list[PostResponse])
@@ -155,7 +213,7 @@ def update_post_full(post_id: int, post_data: PostCreate, db: Annotated[Session,
     return existing_post
 
 @app.patch("/api/posts/{post_id}", response_model=PostResponse)
-def update_post_partial(post_id: int, post_data: PostCreate, db: Annotated[Session, Depends(get_db)]):
+def update_post_partial(post_id: int, post_data: PostUpdate, db: Annotated[Session, Depends(get_db)]):
     result = db.execute(select(models.Post).where(models.Post.id == post_id))
     existing_post = result.scalars().first()
 
@@ -169,6 +227,18 @@ def update_post_partial(post_id: int, post_data: PostCreate, db: Annotated[Sessi
     db.commit()
     db.refresh(existing_post)
     return existing_post
+
+@app.delete("/api/posts/{post_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_post(post_id: int, db: Annotated[Session, Depends(get_db)]):
+    result = db.execute(select(models.Post).where(models.Post.id == post_id))
+    post = result.scalars().first()
+
+    if post is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")
+
+    db.delete(post)
+    db.commit()
+    return JSONResponse(status_code=status.HTTP_204_NO_CONTENT, content=None)
 
 
 #====== Custom error handlers ======

@@ -76,15 +76,24 @@
                             </div>
                             <!-- Navbar Right Side -->
                             <div class="flex items-center gap-2">
-                                <!-- NOTE: Once auth is set up, this button will only be visible when logged in -->
-                                <button class="px-3 py-1.5 border border-white rounded text-white text-sm hover:bg-white hover:text-steel transition-colors"
+                            <!-- Shown when logged in (hidden by default, shown via JS) -->
+                            <div id="loggedInNav" class="hidden flex items-center gap-2">
+                                <button class="px-3 py-2 border border-white text-white rounded hover:bg-white hover:text-steel font-medium text-sm mb-2 md:mb-0 md:me-2"
                                         type="button"
-                                        id="openCreatePostBtn">New Post</button>
-                                <!-- NOTE: Once auth is set up, this button will only be visible when logged in -->
-                                <a class="px-3 py-1.5 border border-white rounded text-white text-sm hover:bg-white hover:text-steel transition-colors"
-                                   href="#">Login</a>
-                                <a class="px-3 py-1.5 bg-white text-steel rounded text-sm font-medium hover:bg-gray-100 transition-colors"
-                                   href="#">Register</a>
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#createPostModal">New Post</button>
+                                <span id="usernameDisplay" class="text-white md:me-2 md:px-2"></span>
+                                <button class="px-3 py-2 border border-white text-white rounded hover:bg-white hover:text-steel font-medium text-sm mb-2 md:mb-0 md:me-3"
+                                        type="button"
+                                        id="logoutBtn">Logout</button>
+                            </div>
+                            <!-- Shown when logged out -->
+                            <div id="loggedOutNav" class="flex items-center gap-2">
+                                <a class="px-3 py-2 border border-white text-white rounded hover:bg-white hover:text-steel font-medium text-sm mb-2 md:mb-0 md:me-2"
+                                   href="{{ url_for("login_page") }}">Login</a>
+                                <a class="px-3 py-2 bg-white text-steel rounded hover:bg-gray-100 font-medium text-sm mb-2 md:mb-0 md:me-3"
+                                   href="{{ url_for("register_page") }}">Register</a>
+                            </div>
                                 <!-- Theme dropdown -->
                                 <div class="relative" id="themeDropdownContainer">
                                     <button id="themeToggleBtn"
@@ -316,6 +325,7 @@
         document.getElementById('mobileMenu').classList.toggle('hidden');
       });
         </script>
+
         <!-- Modal helpers -->
         <script>
       function openModal(id) {
@@ -350,6 +360,36 @@
       document.getElementById('openCreatePostBtn')?.addEventListener('click', () => openModal('createPostModal'));
       document.getElementById('openCreatePostBtnMobile')?.addEventListener('click', () => openModal('createPostModal'));
         </script>
+
+        <!-- Auth State Management -->
+        <script type="module">
+        import { getCurrentUser, logout } from '/static/js/auth.js';
+
+        // Update navbar based on auth state
+        async function updateAuthUI() {
+            const user = await getCurrentUser();
+            const loggedInNav = document.getElementById('loggedInNav');
+            const loggedOutNav = document.getElementById('loggedOutNav');
+
+            if (user) {
+            loggedInNav.classList.remove('hidden');
+            loggedInNav.classList.add('flex');
+            loggedOutNav.classList.add('hidden');
+            document.getElementById('usernameDisplay').textContent = user.email;
+            } else {
+            loggedInNav.classList.add('hidden');
+            loggedInNav.classList.remove('flex');
+            loggedOutNav.classList.remove('hidden');
+            }
+        }
+
+        // Logout handler
+        document.getElementById('logoutBtn').addEventListener('click', logout);
+
+        // Update UI on page load
+        updateAuthUI();
+        </script>
+
         <!-- Create Post Form Handler -->
         <script type="module">
     import {
@@ -417,6 +457,8 @@
     }
     });
         </script>
+
+
         {% block scripts %}
         {% endblock scripts %}
     </body>

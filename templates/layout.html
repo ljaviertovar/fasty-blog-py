@@ -1,247 +1,423 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-
-    <!-- Site Info -->
-    {% if title %}
-      <title>FastAPI Blog - {{ title }}</title>
-    {% else %}
-      <title>FastAPI Blog</title>
-    {% endif %}
-    <meta name="description" content="FastAPI Tutorial">
-    <meta name="author" content="Corey Schafer">
-
-    <!-- Open Graph Tags: The title of the page for social media sharing. It can match the title tag or be more descriptive. -->
-    <meta property="og:title" content="FastAPI Blog">
-
-    <!-- Open Graph Tags: Typically set to "website" for static sites or "article" for content-heavy pages. -->
-    <meta property="og:type" content="website">
-
-    <!-- Open Graph Tags: The URL of the page, used to ensure link previews resolve to the correct page. -->
-    <meta property="og:url" content="">
-
-    <!-- Open Graph Tags: URL of an image that represents the page. Useful for link previews. -->
-    <meta property="og:image" content="">
-
-    <!-- Open Graph Tags: Provides an alternative text for the image to improve accessibility. -->
-    <meta property="og:image:alt" content="">
-
-    <!-- Preconnect for Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-
-    <!-- Custom Font -->
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap"
-          rel="stylesheet">
-
-    <!-- Tailwind CSS -->
-    <link rel="stylesheet"
-          type="text/css"
-          href="{{ url_for('static', path='css/main.css') }}">
-
-    <!-- Set a theme color that matches your website's primary color -->
-    <meta name="theme-color" content="#527c9f">
-
-    <!-- Favicon for all browsers -->
-    <link rel="icon"
-          href="{{ url_for('static', path='icons/favicon.ico') }}"
-          sizes="any">
-    <link rel="icon"
-          href="{{ url_for('static', path='icons/icon.svg') }}"
-          type="image/svg+xml">
-
-    <!-- Apple touch icon for iOS devices -->
-    <link rel="apple-touch-icon"
-          sizes="180x180"
-          href="{{ url_for('static', path='icons/icon.png') }}">
-    <!-- Web app manifest for Progressive Web Apps -->
-    <link rel="manifest"
-          href="{{ url_for('static', path='site.webmanifest') }}">
-  </head>
-  <body class="flex flex-col min-h-screen bg-gray-50 dark:bg-gray-900 font-body text-gray-800 dark:text-gray-200">
-    <header class="site-header">
-      <nav class="fixed top-0 inset-x-0 z-50 bg-steel shadow-md">
-        <div class="container mx-auto px-4 max-w-6xl">
-          <div class="flex items-center justify-between h-14">
-
-            <!-- Brand -->
-            <a class="font-heading font-bold text-white text-lg mr-4 shrink-0"
-               href="{{ url_for('home') }}">FastAPI Blog</a>
-
-            <!-- Mobile toggle -->
-            <button id="navToggle"
-                    class="md:hidden text-gray-300 hover:text-white focus:outline-none"
-                    type="button"
-                    aria-controls="mobileMenu"
-                    aria-expanded="false"
-                    aria-label="Toggle navigation">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M4 6h16M4 12h16M4 18h16"/>
-              </svg>
-            </button>
-
-            <!-- Desktop nav -->
-            <div class="hidden md:flex md:items-center md:gap-3 flex-1">
-              <div class="flex items-center mr-auto">
-                <a class="text-gray-300 hover:text-white font-semibold px-2 py-1 transition-colors"
-                   aria-current="page"
-                   href="{{ url_for('home') }}">Home</a>
-              </div>
-              <div class="flex items-center gap-2">
-                <a class="border border-gray-300 text-gray-300 hover:bg-white hover:text-steel px-4 py-1.5 rounded text-sm font-medium transition-colors"
-                   href="#">Login</a>
-                <a class="bg-white text-steel hover:bg-gray-100 px-4 py-1.5 rounded text-sm font-medium transition-colors mr-1"
-                   href="#">Register</a>
-
-                <!-- Theme dropdown -->
-                <div class="relative" id="themeDropdownWrap">
-                  <button class="flex items-center gap-1 text-gray-300 hover:text-white px-2 py-1.5 rounded text-sm transition-colors"
-                          id="themeToggleBtn"
-                          type="button"
-                          aria-haspopup="listbox"
-                          aria-expanded="false">
-                    <span id="bd-theme-text">🌗 Auto</span>
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M19 9l-7 7-7-7"/>
-                    </svg>
-                  </button>
-                  <ul class="absolute right-0 mt-1 w-36 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 hidden z-50"
-                      id="themeMenu"
-                      role="listbox">
-                    <li>
-                      <button class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-t-lg"
-                              type="button"
-                              data-bs-theme-value="light">🌝 Light</button>
-                    </li>
-                    <li>
-                      <button class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
-                              type="button"
-                              data-bs-theme-value="dark">🌚 Dark</button>
-                    </li>
-                    <li>
-                      <button class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-b-lg"
-                              type="button"
-                              data-bs-theme-value="auto">🌗 Auto</button>
-                    </li>
-                  </ul>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <!-- Site Info -->
+        {% if title %}
+            <title>FastAPI Blog - {{ title }}</title>
+        {% else %}
+            <title>FastAPI Blog</title>
+        {% endif %}
+        <meta name="description" content="FastAPI Tutorial">
+        <meta name="author" content="Corey Schafer">
+        <!-- Open Graph Tags: The title of the page for social media sharing. It can match the title tag or be more descriptive. -->
+        <meta property="og:title" content="FastAPI Blog">
+        <!-- Open Graph Tags: Typically set to "website" for static sites or "article" for content-heavy pages. -->
+        <meta property="og:type" content="website">
+        <!-- Open Graph Tags: The URL of the page, used to ensure link previews resolve to the correct page. -->
+        <meta property="og:url" content="">
+        <!-- Open Graph Tags: URL of an image that represents the page. Useful for link previews. -->
+        <meta property="og:image" content="">
+        <!-- Open Graph Tags: Provides an alternative text for the image to improve accessibility. -->
+        <meta property="og:image:alt" content="">
+        <!-- Preconnect for Google Fonts -->
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <!-- Custom Font -->
+        <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap"
+              rel="stylesheet">
+        <!-- Tailwind CSS -->
+        <link rel="stylesheet"
+              type="text/css"
+              href="{{ url_for("static", path='css/main.css') }}">
+        <!-- Set a theme color that matches your website's primary color -->
+        <meta name="theme-color" content="#527c9f">
+        <!-- Favicon for all browsers -->
+        <link rel="icon"
+              href="{{ url_for('static', path='icons/favicon.ico') }}"
+              sizes="any">
+        <link rel="icon"
+              href="{{ url_for('static', path='icons/icon.svg') }}"
+              type="image/svg+xml">
+        <!-- Apple touch icon for iOS devices -->
+        <link rel="apple-touch-icon"
+              sizes="180x180"
+              href="{{ url_for('static', path='icons/icon.png') }}">
+        <!-- Web app manifest for Progressive Web Apps -->
+        <link rel="manifest"
+              href="{{ url_for('static', path='site.webmanifest') }}">
+        <!-- Content Security Policy: Uncomment to enhance security by restricting where content can be loaded from (useful for preventing certain attacks like XSS). Update if adding external sources (e.g., Google Fonts, Bootstrap CDN, analytics, etc). -->
+        <!-- <meta http-equiv="Content-Security-Policy"
+       content=" default-src 'self'; script-src 'self' code.jquery.com; style-src 'self' fonts.googleapis.com; font-src fonts.gstatic.com; img-src 'self' images.examplecdn.com; "> -->
+    </head>
+    <body class="flex flex-col min-h-screen font-body bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+        <header>
+            <nav class="fixed top-0 inset-x-0 z-50 bg-steel text-white shadow-md">
+                <div class="container mx-auto px-4">
+                    <div class="flex items-center justify-between h-14">
+                        <a class="font-bold text-xl text-white hover:text-gray-200 mr-4"
+                           href="{{ url_for("home") }}">FastAPI Blog</a>
+                        <!-- Mobile menu button -->
+                        <button id="navbarToggleBtn"
+                                type="button"
+                                class="md:hidden p-2 rounded text-white hover:bg-steel-dark focus:outline-none"
+                                aria-label="Toggle navigation">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                            </svg>
+                        </button>
+                        <!-- Desktop nav -->
+                        <div class="hidden md:flex md:items-center md:flex-1">
+                            <div class="flex items-center mr-auto">
+                                <a class="px-3 py-2 text-white hover:text-gray-200 font-medium"
+                                   aria-current="page"
+                                   href="{{ url_for("home") }}">Home</a>
+                            </div>
+                            <!-- Navbar Right Side -->
+                            <div class="flex items-center gap-2">
+                                <!-- NOTE: Once auth is set up, this button will only be visible when logged in -->
+                                <button class="px-3 py-1.5 border border-white rounded text-white text-sm hover:bg-white hover:text-steel transition-colors"
+                                        type="button"
+                                        id="openCreatePostBtn">New Post</button>
+                                <!-- NOTE: Once auth is set up, this button will only be visible when logged in -->
+                                <a class="px-3 py-1.5 border border-white rounded text-white text-sm hover:bg-white hover:text-steel transition-colors"
+                                   href="#">Login</a>
+                                <a class="px-3 py-1.5 bg-white text-steel rounded text-sm font-medium hover:bg-gray-100 transition-colors"
+                                   href="#">Register</a>
+                                <!-- Theme dropdown -->
+                                <div class="relative" id="themeDropdownContainer">
+                                    <button id="themeToggleBtn"
+                                            type="button"
+                                            class="flex items-center gap-1 px-3 py-1.5 text-white text-sm hover:text-gray-200">
+                                        <span id="bd-theme-text">🌗 Auto</span>
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                        </svg>
+                                    </button>
+                                    <ul id="themeDropdownMenu"
+                                        class="hidden absolute right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded shadow-lg min-w-max z-10"
+                                        role="menu">
+                                        <li>
+                                            <button class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                                    type="button"
+                                                    data-theme-value="light">🌝 Light</button>
+                                        </li>
+                                        <li>
+                                            <button class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                                    type="button"
+                                                    data-theme-value="dark">🌚 Dark</button>
+                                        </li>
+                                        <li>
+                                            <button class="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
+                                                    type="button"
+                                                    data-theme-value="auto">🌗 Auto</button>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Mobile menu -->
+                    <div id="mobileMenu" class="hidden md:hidden pb-3">
+                        <a class="block px-3 py-2 text-white hover:text-gray-200 font-medium"
+                           href="{{ url_for("home") }}">Home</a>
+                        <div class="flex flex-col gap-2 mt-2">
+                            <button class="px-3 py-1.5 border border-white rounded text-white text-sm hover:bg-white hover:text-steel"
+                                    type="button"
+                                    id="openCreatePostBtnMobile">New Post</button>
+                            <a class="px-3 py-1.5 border border-white rounded text-white text-sm hover:bg-white hover:text-steel text-center"
+                               href="#">Login</a>
+                            <a class="px-3 py-1.5 bg-white text-steel rounded text-sm font-medium hover:bg-gray-100 text-center"
+                               href="#">Register</a>
+                        </div>
+                    </div>
                 </div>
-              </div>
+            </nav>
+        </header>
+        <main role="main" class="container mx-auto px-4 pt-20 flex-1">
+            <div class="flex gap-6">
+                <div class="flex-1 min-w-0">
+                    {% block content %}
+                    {% endblock content %}
+                </div>
+                <aside class="w-80 flex-shrink-0">
+                    <div class="sticky top-20">
+                        <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg py-3 px-4 mb-4">
+                            <h3 class="text-lg font-semibold mb-2">Our Sidebar</h3>
+                            <p class="text-gray-500 dark:text-gray-400 mb-3">You can put any information here you'd like.</p>
+                            <ul class="border border-gray-200 dark:border-gray-700 rounded divide-y divide-gray-200 dark:divide-gray-700">
+                                <li class="px-4 py-2 text-gray-700 dark:text-gray-300">Latest Posts</li>
+                                <li class="px-4 py-2 text-gray-700 dark:text-gray-300">Announcements</li>
+                                <li class="px-4 py-2 text-gray-700 dark:text-gray-300">Calendars</li>
+                                <li class="px-4 py-2 text-gray-700 dark:text-gray-300">etc</li>
+                            </ul>
+                        </div>
+                    </div>
+                </aside>
             </div>
-          </div>
-
-          <!-- Mobile menu -->
-          <div class="md:hidden hidden pb-3 border-t border-white/20 pt-2" id="mobileMenu">
-            <a class="block text-gray-300 hover:text-white font-semibold px-2 py-2 transition-colors"
-               href="{{ url_for('home') }}">Home</a>
-            <div class="flex flex-wrap gap-2 mt-2 px-2">
-              <a class="border border-gray-300 text-gray-300 hover:bg-white hover:text-steel px-4 py-1.5 rounded text-sm font-medium transition-colors"
-                 href="#">Login</a>
-              <a class="bg-white text-steel hover:bg-gray-100 px-4 py-1.5 rounded text-sm font-medium transition-colors"
-                 href="#">Register</a>
-            </div>
-            <div class="flex gap-1 mt-2 px-2">
-              <button class="text-gray-300 hover:text-white text-sm px-2 py-1 transition-colors"
-                      type="button"
-                      data-bs-theme-value="light">🌝 Light</button>
-              <button class="text-gray-300 hover:text-white text-sm px-2 py-1 transition-colors"
-                      type="button"
-                      data-bs-theme-value="dark">🌚 Dark</button>
-              <button class="text-gray-300 hover:text-white text-sm px-2 py-1 transition-colors"
-                      type="button"
-                      data-bs-theme-value="auto">🌗 Auto</button>
-            </div>
-          </div>
-        </div>
-      </nav>
-    </header>
-
-    <main role="main" class="container mx-auto px-4 max-w-6xl pt-20 flex-1">
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-4">
-        <div class="md:col-span-2">
-          {% block content %}
-          {% endblock content %}
-        </div>
-        <aside>
-          <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md transition-shadow py-3 px-4 mb-4">
-            <h3 class="font-heading font-bold text-gray-700 dark:text-gray-200 text-xl mb-2">Our Sidebar</h3>
-            <p class="text-gray-500 dark:text-gray-400 text-sm mb-3">You can put any information here you'd like.</p>
-            <ul class="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden divide-y divide-gray-200 dark:divide-gray-700">
-              <li class="px-4 py-2 text-gray-700 dark:text-gray-300 text-sm">Latest Posts</li>
-              <li class="px-4 py-2 text-gray-700 dark:text-gray-300 text-sm">Announcements</li>
-              <li class="px-4 py-2 text-gray-700 dark:text-gray-300 text-sm">Calendars</li>
-              <li class="px-4 py-2 text-gray-700 dark:text-gray-300 text-sm">etc</li>
-            </ul>
-          </div>
-        </aside>
-      </div>
-    </main>
-
+        </main>
     <footer class="mt-auto py-3 bg-gray-100 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
       <div class="container mx-auto px-4 max-w-6xl text-center">
         <p class="text-gray-500 dark:text-gray-400">
-          © <span id="year"></span> 
+          © <span id="year"></span>
             <a class="text-steel dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 font-medium transition-colors"
                  href="https://ljaviertovar.dev" target="_blank" rel="noopener noreferrer">ljaviertovar.dev</a>
         </p>
       </div>
     </footer>
-
-    <!-- Set the current year in the footer -->
-    <script>document.getElementById('year').textContent = new Date().getFullYear();</script>
-
-    <!-- Mobile nav toggle -->
-    <script>
-      const navToggle = document.getElementById('navToggle');
-      const mobileMenu = document.getElementById('mobileMenu');
-      navToggle.addEventListener('click', () => {
-        const isOpen = !mobileMenu.classList.contains('hidden');
-        mobileMenu.classList.toggle('hidden');
-        navToggle.setAttribute('aria-expanded', String(!isOpen));
-      });
-    </script>
-
-    <!-- Theme dropdown toggle -->
-    <script>
-      const themeToggleBtn = document.getElementById('themeToggleBtn');
-      const themeMenu = document.getElementById('themeMenu');
-      themeToggleBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const isOpen = !themeMenu.classList.contains('hidden');
-        themeMenu.classList.toggle('hidden');
-        themeToggleBtn.setAttribute('aria-expanded', String(!isOpen));
-      });
-      document.addEventListener('click', () => {
-        themeMenu.classList.add('hidden');
-        themeToggleBtn.setAttribute('aria-expanded', 'false');
-      });
-    </script>
-
-    <!-- Dark Mode Toggle -->
-    <script>
+        <!-- Create Post Modal -->
+        <div id="createPostModal"
+             class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50"
+             role="dialog"
+             aria-modal="true"
+             aria-labelledby="createPostModalLabel">
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md mx-4">
+                <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+                    <h5 class="text-lg font-medium text-gray-900 dark:text-gray-100"
+                        id="createPostModalLabel">New Post</h5>
+                    <button type="button"
+                            class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-2xl leading-none"
+                            aria-label="Close"
+                            data-close-modal="createPostModal">&times;</button>
+                </div>
+                <form id="createPostForm">
+                    <div class="p-4 space-y-4">
+                        <div>
+                            <label for="title"
+                                   class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Title</label>
+                            <input type="text"
+                                   class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-steel"
+                                   id="title"
+                                   name="title"
+                                   required>
+                        </div>
+                        <div>
+                            <label for="content"
+                                   class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Content</label>
+                            <textarea class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-steel"
+                                      id="content"
+                                      name="content"
+                                      rows="5"
+                                      required></textarea>
+                        </div>
+                    </div>
+                    <div class="flex justify-end gap-2 px-4 py-3 border-t border-gray-200 dark:border-gray-700">
+                        <button type="button"
+                                class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                                data-close-modal="createPostModal">Cancel</button>
+                        <button type="submit"
+                                class="px-4 py-2 bg-steel text-white rounded-md text-sm font-medium hover:bg-steel-dark transition-colors">Post</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <!-- Success Modal -->
+        <div id="successModal"
+             class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50"
+             role="dialog"
+             aria-modal="true"
+             aria-labelledby="successModalLabel">
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md mx-4">
+                <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-green-500 rounded-t-lg">
+                    <h5 class="text-lg font-medium text-white" id="successModalLabel">Success</h5>
+                    <button type="button"
+                            class="text-white hover:text-gray-200 text-2xl leading-none"
+                            aria-label="Close"
+                            data-close-modal="successModal">&times;</button>
+                </div>
+                <div class="p-4">
+                    <p id="successMessage" class="text-lg text-gray-800 dark:text-gray-200"></p>
+                </div>
+                <div class="flex justify-end px-4 py-3 border-t border-gray-200 dark:border-gray-700">
+                    <button type="button"
+                            class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                            data-close-modal="successModal">Close</button>
+                </div>
+            </div>
+        </div>
+        <!-- Error Modal -->
+        <div id="errorModal"
+             class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50"
+             role="dialog"
+             aria-modal="true"
+             aria-labelledby="errorModalLabel">
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md mx-4">
+                <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-red-600 rounded-t-lg">
+                    <h5 class="text-lg font-medium text-white" id="errorModalLabel">Error</h5>
+                    <button type="button"
+                            class="text-white hover:text-gray-200 text-2xl leading-none"
+                            aria-label="Close"
+                            data-close-modal="errorModal">&times;</button>
+                </div>
+                <div class="p-4">
+                    <p id="errorMessage" class="text-lg text-gray-800 dark:text-gray-200"></p>
+                </div>
+                <div class="flex justify-end px-4 py-3 border-t border-gray-200 dark:border-gray-700">
+                    <button type="button"
+                            class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                            data-close-modal="errorModal">Close</button>
+                </div>
+            </div>
+        </div>
+        <!-- Set the current year in the footer -->
+        <script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+        <!-- Dark Mode Toggle -->
+        <script>
       const setTheme = (theme) => {
-        const isDark = theme === 'dark' ||
-          (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-        document.documentElement.classList.toggle('dark', isDark);
+        const html = document.documentElement;
+        if (theme === 'dark') {
+          html.classList.add('dark');
+        } else if (theme === 'light') {
+          html.classList.remove('dark');
+        } else {
+          // auto
+          if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            html.classList.add('dark');
+          } else {
+            html.classList.remove('dark');
+          }
+        }
         localStorage.setItem('theme', theme);
+
+        // Update button text
         const themeText = { light: '🌝 Light', dark: '🌚 Dark', auto: '🌗 Auto' };
-        document.getElementById('bd-theme-text').textContent = themeText[theme] || '🌗 Auto';
+        const el = document.getElementById('bd-theme-text');
+        if (el) el.textContent = themeText[theme];
       };
 
-      document.querySelectorAll('[data-bs-theme-value]').forEach(button => {
-        button.addEventListener('click', () => setTheme(button.getAttribute('data-bs-theme-value')));
+      // Theme dropdown toggle
+      document.getElementById('themeToggleBtn')?.addEventListener('click', () => {
+        document.getElementById('themeDropdownMenu').classList.toggle('hidden');
       });
 
-      // Initialize theme
+      // Close dropdown when clicking outside
+      document.addEventListener('click', (e) => {
+        const container = document.getElementById('themeDropdownContainer');
+        if (container && !container.contains(e.target)) {
+          document.getElementById('themeDropdownMenu').classList.add('hidden');
+        }
+      });
+
+      // Set theme on click
+      document.querySelectorAll('[data-theme-value]').forEach(button => {
+        button.addEventListener('click', () => {
+          setTheme(button.getAttribute('data-theme-value'));
+          document.getElementById('themeDropdownMenu').classList.add('hidden');
+        });
+      });
+
+      // Initialize
       setTheme(localStorage.getItem('theme') || 'auto');
-
-      // Re-evaluate on system preference change (for auto mode)
-      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
-        if (localStorage.getItem('theme') === 'auto') setTheme('auto');
+        </script>
+        <!-- Navbar mobile toggle -->
+        <script>
+      document.getElementById('navbarToggleBtn')?.addEventListener('click', () => {
+        document.getElementById('mobileMenu').classList.toggle('hidden');
       });
-    </script>
-  </body>
+        </script>
+        <!-- Modal helpers -->
+        <script>
+      function openModal(id) {
+        const modal = document.getElementById(id);
+        if (modal) {
+          modal.classList.remove('hidden');
+          modal.classList.add('flex');
+        }
+      }
+
+      function closeModal(id) {
+        const modal = document.getElementById(id);
+        if (modal) {
+          modal.classList.add('hidden');
+          modal.classList.remove('flex');
+        }
+      }
+
+      // Close buttons
+      document.querySelectorAll('[data-close-modal]').forEach(btn => {
+        btn.addEventListener('click', () => closeModal(btn.getAttribute('data-close-modal')));
+      });
+
+      // Close modal on overlay click
+      document.querySelectorAll('[role="dialog"]').forEach(modal => {
+        modal.addEventListener('click', (e) => {
+          if (e.target === modal) closeModal(modal.id);
+        });
+      });
+
+      // New Post button
+      document.getElementById('openCreatePostBtn')?.addEventListener('click', () => openModal('createPostModal'));
+      document.getElementById('openCreatePostBtnMobile')?.addEventListener('click', () => openModal('createPostModal'));
+        </script>
+        <!-- Create Post Form Handler -->
+        <script type="module">
+    import {
+    getErrorMessage,
+    hideModal,
+    showModal,
+    } from "/static/js/utils.js";
+
+    const createForm = document.getElementById("createPostForm");
+
+    createForm.addEventListener("submit", async (event) => {
+    // Stop default form submission - we'll handle it with JavaScript
+    event.preventDefault();
+
+    // Gather form values into a plain object {title: "...", content: "..."}
+    const formData = new FormData(createForm);
+    const postData = Object.fromEntries(formData.entries());
+
+    // TEMPORARY - hardcoded until authorization (Tutorial 11)
+    postData.user_id = 1;
+
+    try {
+        // POST to our API as JSON
+        const response = await fetch("/api/posts", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify(postData),
+        });
+
+        if (response.ok) {
+        const data = await response.json();
+        document.getElementById("successMessage").textContent =
+            `Post "${data.title}" created successfully!`;
+
+        hideModal("createPostModal");
+        showModal("successModal");
+
+        // Clear form
+        createForm.reset();
+
+        // Reload page after success modal is closed
+        document
+            .getElementById("successModal")
+            .addEventListener(
+            "modalClosed",
+            () => {
+                window.location.reload();
+            },
+            { once: true },
+            );
+        } else {
+        const error = await response.json();
+        document.getElementById("errorMessage").textContent =
+            getErrorMessage(error);
+
+        hideModal("createPostModal");
+        showModal("errorModal");
+        }
+    } catch (error) {
+        document.getElementById("errorMessage").textContent =
+        "Network error. Please check your connection and try again.";
+        showModal("errorModal");
+    }
+    });
+        </script>
+        {% block scripts %}
+        {% endblock scripts %}
+    </body>
 </html>

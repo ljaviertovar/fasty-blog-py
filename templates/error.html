@@ -1,11 +1,12 @@
-{% extends "layout.html" %}
-{% block content %}
- <article class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md hover:border-gray-300 dark:hover:border-gray-600 transition-all py-3 px-4 mb-4">
-       <div class="flex items-start gap-4">
-            <h2 class="article-title font-heading text-4xl mb-1">
-                Oops... {{ status_code }} Error
-            </h2>
-        </div>
-    <p class="text-gray-600 dark:text-gray-300 mt-2">{{ message }}</p>
-  </article>
+{% extends "layout.html" %} {% block content %}
+<article
+  class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md hover:border-gray-300 dark:hover:border-gray-600 transition-all py-3 px-4 mb-4"
+>
+  <div class="flex items-start gap-4">
+    <h2 class="font-heading text-4xl mb-1 text-gray-900 dark:text-gray-100">
+      Oops... {{ status_code }} Error
+    </h2>
+  </div>
+  <p class="text-gray-600 dark:text-gray-300 mt-2">{{ message }}</p>
+</article>
 {% endblock content %}

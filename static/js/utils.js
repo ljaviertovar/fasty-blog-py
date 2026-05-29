@@ -1,0 +1,28 @@
+// Error message extraction from API responses
+export function getErrorMessage(error) {
+  if (typeof error.detail === "string") {
+    return error.detail;
+  } else if (Array.isArray(error.detail)) {
+    return error.detail.map((err) => err.msg).join(". ");
+  }
+  return "An error occurred. Please try again.";
+}
+
+// Show a modal by ID
+export function showModal(modalId) {
+  const modal = document.getElementById(modalId);
+  if (modal) {
+    modal.classList.remove("hidden");
+    modal.classList.add("flex");
+  }
+}
+
+// Hide a modal by ID
+export function hideModal(modalId) {
+  const modal = document.getElementById(modalId);
+  if (modal) {
+    modal.classList.add("hidden");
+    modal.classList.remove("flex");
+    modal.dispatchEvent(new Event("modalClosed"));
+  }
+}

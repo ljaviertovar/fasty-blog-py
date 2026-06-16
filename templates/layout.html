@@ -114,8 +114,7 @@
                   <button
                     class="px-3 py-2 bg-white text-steel rounded hover:bg-gray-100 font-medium text-sm mb-2 md:mb-0 md:me-2"
                     type="button"
-                    data-bs-toggle="modal"
-                    data-bs-target="#createPostModal"
+                    id="openCreatePostBtn"
                   >
                     New Post
                   </button>
@@ -643,14 +642,11 @@
             // Clear form
             createForm.reset();
 
-            // Reload page after success modal is closed
-            document.getElementById("successModal").addEventListener(
-              "modalClosed",
-              () => {
-                window.location.reload();
-              },
-              { once: true },
-            );
+            // Auto-close success modal after 3 seconds and reload
+            setTimeout(() => {
+              hideModal("successModal");
+              window.location.reload();
+            }, 1500);
           } else {
             const error = await response.json();
             document.getElementById("errorMessage").textContent =

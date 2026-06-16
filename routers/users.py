@@ -1,18 +1,23 @@
 from datetime import timedelta
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile
 from fastapi.security import OAuth2PasswordRequestForm
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from starlette.concurrency import run_in_threadpool
+
+from PIL import UnidentifiedImageError
+
+from image_utils import process_profile_picture, delete_profile_picture
+
 import models
 from database import get_db
 from schemas import (
     PostResponse,
-    UserPublic,
     UserPrivate,
     UserCreate,
     UserUpdate,
@@ -197,8 +202,6 @@ async def update_user(
         user.username = user_update.username
     if user_update.email is not None:
         user.email = user_update.email.lower()
-    if user_update.image_file is not None:
-        user.image_file = user_update.image_file
 
     await db.commit()
     await db.refresh(user)
@@ -227,5 +230,81 @@ async def delete_user(
             status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
         )
 
+    old_image_file = user.image_file
+
     await db.delete(user)
     await db.commit()
+
+    if old_image_file:
+        await run_in_threadpool(delete_profile_picture, old_image_file)
+
+
+# PATCH /api/users/{user_id}/profile_picture - Update user's profile picture
+@router.patch("/{user_id}/profile_picture", response_model=UserPrivate)
+async def update_profile_picture(
+    user_id: int,
+    file: UploadFile,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    if user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to update this user's profile picture",
+        )
+
+    content = await file.read()
+
+    if len(content) > settings.MAX_UPLOAD_SIZE_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Uploaded file is too large, Max size is {settings.MAX_UPLOAD_SIZE_BYTES // (1024 * 1024)}MB",
+        )
+
+    try:
+        new_filename = await run_in_threadpool(process_profile_picture, content)
+    except UnidentifiedImageError as err:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Uploaded file is not a valid image. Please upload a valid image file (JPEG, PNG, GIF, WEBP).",
+        ) from err
+
+    old_filename = current_user.image_file
+    current_user.image_file = new_filename
+
+    await db.commit()
+    await db.refresh(current_user)
+
+    if old_filename:
+        await run_in_threadpool(delete_profile_picture, old_filename)
+
+    return current_user
+
+
+# DELETE /api/users/{user_id}/profile_picture - Delete user's profile picture
+@router.delete("/{user_id}/profile_picture", response_model=UserPrivate)
+async def delete_profile_picture_endpoint(
+    user_id: int,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    if user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have permission to delete this user's profile picture",
+        )
+
+    old_filename = current_user.image_file
+    if old_filename is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="User does not have a profile picture to delete",
+        )
+
+    current_user.image_file = None
+    await db.commit()
+    await db.refresh(current_user)
+
+    await run_in_threadpool(delete_profile_picture, old_filename)
+
+    return current_user

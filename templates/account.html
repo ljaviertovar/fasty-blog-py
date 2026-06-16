@@ -68,19 +68,41 @@
     </form>
   </div>
   <div class="py-4"><hr class="border-gray-200 dark:border-gray-700" /></div>
-  <!-- Profile Picture Section (Placeholder) -->
+  <!-- Profile Picture Section -->
   <div class="mb-6">
-    <h5 class="text-base font-semibold text-gray-900 dark:text-gray-100 mb-1">
+    <h5 class="text-base font-semibold text-gray-900 dark:text-gray-100 mb-3">
       Profile Picture
     </h5>
-    <p class="text-sm text-gray-500 dark:text-gray-400 mb-2">
-      File upload coming in a future tutorial.
+    <!-- Preview container -->
+    <div class="mb-3">
+      <img
+        id="imagePreview"
+        class="rounded-full object-cover hidden"
+        alt="Image preview"
+        width="150"
+        height="150"
+      />
+    </div>
+    <!-- File input and upload button -->
+    <div class="flex items-start gap-2">
+      <input
+        type="file"
+        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
+        id="pictureInput"
+        accept="image/*"
+      />
+      <button
+        type="button"
+        class="px-4 py-2 bg-steel hover:bg-steel-dark text-white rounded-md text-sm font-medium transition-colors opacity-50 cursor-not-allowed shrink-0"
+        id="uploadPictureBtn"
+        disabled
+      >
+        Upload
+      </button>
+    </div>
+    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+      Maximum file size: 5MB. Supported formats: JPEG, PNG, GIF, WebP.
     </p>
-    <input
-      type="file"
-      class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm opacity-50 cursor-not-allowed"
-      disabled
-    />
   </div>
   <div class="py-4"><hr class="border-gray-200 dark:border-gray-700" /></div>
   <!-- Password Reset Section (Placeholder) -->
@@ -249,6 +271,111 @@
     document.getElementById("username").value = user.username;
     document.getElementById("email").value = user.email;
   }
+
+  // Image Preview Handler
+  const pictureInput = document.getElementById("pictureInput");
+  const imagePreview = document.getElementById("imagePreview");
+  const uploadBtn = document.getElementById("uploadPictureBtn");
+
+  pictureInput.addEventListener("change", (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        imagePreview.src = e.target.result;
+        imagePreview.classList.remove("hidden");
+      };
+      reader.readAsDataURL(file);
+
+      uploadBtn.disabled = false;
+      uploadBtn.classList.remove("opacity-50", "cursor-not-allowed");
+    } else {
+      imagePreview.classList.add("hidden");
+      uploadBtn.disabled = true;
+      uploadBtn.classList.add("opacity-50", "cursor-not-allowed");
+    }
+  });
+
+  // Upload Profile Picture Handler
+  uploadBtn.addEventListener("click", async () => {
+    const token = getToken();
+    if (!token) {
+      window.location.href = "/login";
+      return;
+    }
+
+    const file = pictureInput.files[0];
+    if (!file) {
+      return;
+    }
+
+    // Use FormData for file uploads (not JSON)
+    const formData = new FormData();
+    formData.append("file", file);
+
+    uploadBtn.disabled = true;
+    uploadBtn.classList.add("opacity-50", "cursor-not-allowed");
+    uploadBtn.textContent = "Uploading...";
+
+    try {
+      const response = await fetch(
+        `/api/users/${currentUserId}/profile_picture`,
+        {
+          method: "PATCH",
+          headers: {
+            // Don't set Content-Type — browser sets multipart boundary automatically
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
+        },
+      );
+
+      if (response.status === 401) {
+        window.location.href = "/login";
+        return;
+      }
+
+      if (response.status === 403) {
+        document.getElementById("errorMessage").textContent =
+          "You are not authorized to update this profile picture.";
+        showModal("errorModal");
+        return;
+      }
+
+      if (response.ok) {
+        const data = await response.json();
+
+        clearUserCache();
+
+        document.getElementById("profileImage").src = data.image_path;
+
+        pictureInput.value = "";
+        imagePreview.classList.add("hidden");
+
+        document.getElementById("successMessage").textContent =
+          "Profile picture updated successfully!";
+        showModal("successModal");
+      } else {
+        const error = await response.json();
+        document.getElementById("errorMessage").textContent =
+          getErrorMessage(error);
+        showModal("errorModal");
+      }
+    } catch (error) {
+      document.getElementById("errorMessage").textContent =
+        "Network error. Please check your connection and try again.";
+      showModal("errorModal");
+    } finally {
+      const hasFile = pictureInput.files.length > 0;
+      uploadBtn.disabled = !hasFile;
+      uploadBtn.textContent = "Upload";
+      if (hasFile) {
+        uploadBtn.classList.remove("opacity-50", "cursor-not-allowed");
+      } else {
+        uploadBtn.classList.add("opacity-50", "cursor-not-allowed");
+      }
+    }
+  });
 
   // Update Profile Form Handler
   const updateForm = document.getElementById("updateProfileForm");

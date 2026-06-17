@@ -12,7 +12,7 @@ from fastapi.templating import Jinja2Templates
 
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -20,6 +20,8 @@ import models
 from database import Base, engine, get_db
 
 from routers import posts, users
+
+from config import settings
 
 
 @asynccontextmanager
@@ -48,14 +50,30 @@ app.include_router(users.router, prefix="/api/users", tags=["users"])
 @app.get("/", include_in_schema=False, name="home")
 @app.get("/posts", include_in_schema=False, name="posts")
 async def home(request: Request, db: Annotated[AsyncSession, Depends(get_db)]):
+
+    count_result = await db.execute(select(func.count()).select_from(models.Post))
+    total = count_result.scalar() or 0
+
     result = await db.execute(
         select(models.Post)
         .options(selectinload(models.Post.author))
         .order_by(models.Post.date_posted.desc())
+        .limit(settings.POSTS_PER_PAGE)
     )
+
     posts = result.scalars().all()
+
+    has_more = len(posts) < total
+
     return templates.TemplateResponse(
-        request, "home.html", {"title": "Home", "posts": posts}
+        request,
+        "home.html",
+        {
+            "title": "Home",
+            "posts": posts,
+            "limit": settings.POSTS_PER_PAGE,
+            "has_more": has_more,
+        },
     )
 
 

@@ -12,21 +12,21 @@ from fastapi.templating import Jinja2Templates
 
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 import models
-from database import Base, engine, get_db
+from database import engine, get_db
 
 from routers import posts, users
+
+from config import settings
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Create database tables on startup
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+
     yield
     # No specific shutdown actions needed
     await engine.dispose()
@@ -48,14 +48,30 @@ app.include_router(users.router, prefix="/api/users", tags=["users"])
 @app.get("/", include_in_schema=False, name="home")
 @app.get("/posts", include_in_schema=False, name="posts")
 async def home(request: Request, db: Annotated[AsyncSession, Depends(get_db)]):
+
+    count_result = await db.execute(select(func.count()).select_from(models.Post))
+    total = count_result.scalar() or 0
+
     result = await db.execute(
         select(models.Post)
         .options(selectinload(models.Post.author))
         .order_by(models.Post.date_posted.desc())
+        .limit(settings.POSTS_PER_PAGE)
     )
+
     posts = result.scalars().all()
+
+    has_more = len(posts) < total
+
     return templates.TemplateResponse(
-        request, "home.html", {"title": "Home", "posts": posts}
+        request,
+        "home.html",
+        {
+            "title": "Home",
+            "posts": posts,
+            "limit": settings.POSTS_PER_PAGE,
+            "has_more": has_more,
+        },
     )
 
 
@@ -91,17 +107,35 @@ async def user_posts(
             status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
         )
 
+    count_result = await db.execute(
+        select(func.count())
+        .select_from(models.Post)
+        .where(models.Post.user_id == user_id)
+    )
+    total = count_result.scalar() or 0
+
     result = await db.execute(
         select(models.Post)
         .options(selectinload(models.Post.author))
         .where(models.Post.user_id == user_id)
         .order_by(models.Post.date_posted.desc())
+        .limit(settings.POSTS_PER_PAGE)
     )
+
     posts = result.scalars().all()
+
+    has_more = len(posts) < total
+
     return templates.TemplateResponse(
         request,
         "user_posts.html",
-        {"title": f"{user.username}'s Posts", "posts": posts, "user": user},
+        {
+            "title": f"{user.username}'s Posts",
+            "posts": posts,
+            "user": user,
+            "limit": settings.POSTS_PER_PAGE,
+            "has_more": has_more,
+        },
     )
 
 
@@ -129,6 +163,26 @@ async def account_page(request: Request):
         request,
         "account.html",
         {"title": "Account"},
+    )
+
+
+@app.get("/reset-password", include_in_schema=False)
+async def reset_password_page(request: Request):
+    respond = templates.TemplateResponse(
+        request,
+        "reset_password.html",
+        {"title": "Reset Password"},
+    )
+    respond.headers["Referrer-Policy"] = "no-referrer"
+    return respond
+
+
+@app.get("/forgot-password", include_in_schema=False)
+async def forgot_password_page(request: Request):
+    return templates.TemplateResponse(
+        request,
+        "forgot_password.html",
+        {"title": "Forgot Password"},
     )
 
 

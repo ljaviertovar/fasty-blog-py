@@ -1,6 +1,8 @@
 from datetime import timedelta, datetime, UTC
 from typing import Annotated
 
+from botocore.exceptions import ClientError
+
 from fastapi import (
     APIRouter,
     Depends,
@@ -21,7 +23,11 @@ from starlette.concurrency import run_in_threadpool
 
 from PIL import UnidentifiedImageError
 
-from image_utils import process_profile_picture, delete_profile_picture
+from image_utils import (
+    upload_profile_picture_to_s3,
+    process_profile_picture,
+    delete_profile_picture_from_s3,
+)
 
 import models
 from database import get_db
@@ -49,6 +55,7 @@ from auth import (
 from email_utils import send_password_reset_email
 
 from config import settings
+
 
 router = APIRouter()
 
@@ -276,7 +283,7 @@ async def delete_user(
     await db.commit()
 
     if old_image_file:
-        await run_in_threadpool(delete_profile_picture, old_image_file)
+        await run_in_threadpool(delete_profile_picture_from_s3, old_image_file)
 
 
 # PATCH /api/users/{user_id}/profile_picture - Update user's profile picture
@@ -302,12 +309,23 @@ async def update_profile_picture(
         )
 
     try:
-        new_filename = await run_in_threadpool(process_profile_picture, content)
+        processed_bytes, new_filename = await run_in_threadpool(
+            process_profile_picture, content
+        )
     except UnidentifiedImageError as err:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Uploaded file is not a valid image. Please upload a valid image file (JPEG, PNG, GIF, WEBP).",
         ) from err
+
+    # Upload the processed image to S3
+    try:
+        await upload_profile_picture_to_s3(processed_bytes, new_filename)
+    except ClientError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to upload profile picture. Please try again later.",
+        ) from e
 
     old_filename = current_user.image_file
     current_user.image_file = new_filename
@@ -316,7 +334,7 @@ async def update_profile_picture(
     await db.refresh(current_user)
 
     if old_filename:
-        await run_in_threadpool(delete_profile_picture, old_filename)
+        await run_in_threadpool(delete_profile_picture_from_s3, old_filename)
 
     return current_user
 
@@ -345,7 +363,7 @@ async def delete_profile_picture_endpoint(
     await db.commit()
     await db.refresh(current_user)
 
-    await run_in_threadpool(delete_profile_picture, old_filename)
+    await run_in_threadpool(delete_profile_picture_from_s3, old_filename)
 
     return current_user
 

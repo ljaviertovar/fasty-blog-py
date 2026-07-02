@@ -36,8 +36,6 @@ app = FastAPI(lifespan=lifespan)
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-app.mount("/media", StaticFiles(directory="media"), name="media")
-
 templates = Jinja2Templates(directory="templates")
 
 app.include_router(posts.router, prefix="/api/posts", tags=["posts"])

@@ -1,4 +1,4 @@
-from pydantic import SecretStr
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -25,6 +25,18 @@ class Settings(BaseSettings):
     MAIL_USE_TLS: bool = True
 
     FRONTEND_URL: str = "http://localhost:8000"
+
+    S3_BUCKET_NAME: str = Field(validation_alias="S3_BUCKET_NAME")
+    S3_ACCESS_KEY_ID: SecretStr | None = Field(
+        default=None, validation_alias="S3_ACCESS_KEY_ID"
+    )
+    S3_SECRET_ACCESS_KEY: SecretStr | None = Field(
+        default=None, validation_alias="S3_SECRET_ACCESS_KEY"
+    )
+    S3_REGION_NAME: str = Field(default="us-east-1", validation_alias="S3_REGION_NAME")
+    S3_ENDPOINT_URL: str | None = (
+        None  # Optional custom endpoint URL for S3-compatible services
+    )
 
 
 settings = Settings()  # type: ignore

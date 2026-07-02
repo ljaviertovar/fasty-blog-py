@@ -1,5 +1,6 @@
 import uuid
 from io import BytesIO
+import logging
 
 from PIL import Image, ImageOps
 
@@ -7,6 +8,8 @@ import boto3
 from starlette.concurrency import run_in_threadpool
 
 from config import settings
+
+logger = logging.getLogger(__name__)
 
 
 def _get_s3_client():
@@ -52,8 +55,11 @@ def _upload_to_s3(file_bytes: bytes, key: str) -> None:
 
 
 def _delete_from_s3(key: str) -> None:
+    logger.debug(f"_delete_from_s3 called with key: {key}")
     s3 = _get_s3_client()
-    s3.delete_object(Bucket=settings.S3_BUCKET_NAME, Key=key)
+    logger.debug(f"S3 client created. Bucket: {settings.S3_BUCKET_NAME}")
+    response = s3.delete_object(Bucket=settings.S3_BUCKET_NAME, Key=key)
+    logger.debug(f"S3 delete_object response: {response}")
 
 
 async def upload_profile_picture_to_s3(file_bytes: bytes, filename: str) -> None:
@@ -62,8 +68,11 @@ async def upload_profile_picture_to_s3(file_bytes: bytes, filename: str) -> None
 
 
 async def delete_profile_picture_from_s3(filename: str) -> None:
+    logger.info(f"delete_profile_picture_from_s3 called with filename: {filename}")
     if not filename:
+        logger.warning("Empty filename provided to delete_profile_picture_from_s3")
         return
 
     key = f"profile_pics/{filename}"
+    logger.info(f"Constructed S3 key: {key}")
     await run_in_threadpool(_delete_from_s3, key)

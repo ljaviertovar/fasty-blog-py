@@ -1,5 +1,6 @@
 from datetime import timedelta, datetime, UTC
 from typing import Annotated
+import logging
 
 from botocore.exceptions import ClientError
 
@@ -56,6 +57,7 @@ from email_utils import send_password_reset_email
 
 from config import settings
 
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -283,7 +285,16 @@ async def delete_user(
     await db.commit()
 
     if old_image_file:
-        await run_in_threadpool(delete_profile_picture_from_s3, old_image_file)
+        try:
+            await delete_profile_picture_from_s3(old_image_file)
+        except ClientError as e:
+            logger.error(
+                f"Failed to delete profile picture '{old_image_file}' from S3 for deleted user {user_id}: {str(e)}"
+            )
+        except Exception as e:
+            logger.error(
+                f"Unexpected error deleting profile picture '{old_image_file}' from S3 for deleted user {user_id}: {str(e)}"
+            )
 
 
 # PATCH /api/users/{user_id}/profile_picture - Update user's profile picture
@@ -299,6 +310,9 @@ async def update_profile_picture(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You do not have permission to update this user's profile picture",
         )
+
+    # Save the old filename before any operations
+    old_filename = current_user.image_file
 
     content = await file.read()
 
@@ -327,14 +341,26 @@ async def update_profile_picture(
             detail="Failed to upload profile picture. Please try again later.",
         ) from e
 
-    old_filename = current_user.image_file
+    # Update user with new filename
     current_user.image_file = new_filename
-
     await db.commit()
     await db.refresh(current_user)
 
+    # Delete old image from S3 (after successful DB commit)
+    # If this fails, log the error but don't interrupt the flow
     if old_filename:
-        await run_in_threadpool(delete_profile_picture_from_s3, old_filename)
+        logger.info(f"Attempting to delete old profile picture: {old_filename}")
+        try:
+            await delete_profile_picture_from_s3(old_filename)
+            logger.info(f"Successfully deleted old profile picture: {old_filename}")
+        except ClientError as e:
+            logger.error(
+                f"Failed to delete old profile picture '{old_filename}' from S3 for user {user_id}: {str(e)}"
+            )
+        except Exception as e:
+            logger.error(
+                f"Unexpected error deleting old profile picture '{old_filename}' from S3 for user {user_id}: {str(e)}"
+            )
 
     return current_user
 
@@ -363,7 +389,18 @@ async def delete_profile_picture_endpoint(
     await db.commit()
     await db.refresh(current_user)
 
-    await run_in_threadpool(delete_profile_picture_from_s3, old_filename)
+    # Delete from S3 (after successful DB commit)
+    # If this fails, log the error but don't interrupt the flow
+    try:
+        await delete_profile_picture_from_s3(old_filename)
+    except ClientError as e:
+        logger.error(
+            f"Failed to delete profile picture '{old_filename}' from S3 for user {user_id}: {str(e)}"
+        )
+    except Exception as e:
+        logger.error(
+            f"Unexpected error deleting profile picture '{old_filename}' from S3 for user {user_id}: {str(e)}"
+        )
 
     return current_user
 

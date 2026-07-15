@@ -1,18 +1,34 @@
-from datetime import timedelta
+from datetime import timedelta, datetime, UTC
 from typing import Annotated
+import logging
 
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile
+from botocore.exceptions import ClientError
+
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    status,
+    UploadFile,
+    Query,
+    BackgroundTasks,
+)
 from fastapi.security import OAuth2PasswordRequestForm
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+from sqlalchemy import delete as sql_delete
 
 from starlette.concurrency import run_in_threadpool
 
 from PIL import UnidentifiedImageError
 
-from image_utils import process_profile_picture, delete_profile_picture
+from image_utils import (
+    upload_profile_picture_to_s3,
+    process_profile_picture,
+    delete_profile_picture_from_s3,
+)
 
 import models
 from database import get_db
@@ -22,6 +38,10 @@ from schemas import (
     UserCreate,
     UserUpdate,
     Token,
+    PaginatedPostsResponse,
+    ChangePasswordRequest,
+    ForgotPasswordRequest,
+    ResetPasswordRequest,
 )
 
 from auth import (
@@ -29,9 +49,15 @@ from auth import (
     hash_password,
     verify_password,
     create_access_token,
+    generate_password_reset_token,
+    hash_reset_token,
 )
 
+from email_utils import send_password_reset_email
+
 from config import settings
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -57,8 +83,13 @@ async def get_user(user_id: int, db: Annotated[AsyncSession, Depends(get_db)]):
 
 
 # GET /api/users/{user_id}/posts - Get all posts by a specific user
-@router.get("/{user_id}/posts", response_model=list[PostResponse])
-async def get_user_posts(user_id: int, db: Annotated[AsyncSession, Depends(get_db)]):
+@router.get("/{user_id}/posts", response_model=PaginatedPostsResponse)
+async def get_user_posts(
+    user_id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    skip: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=100)] = 10,
+):
     result = await db.execute(select(models.User).where(models.User.id == user_id))
     user = result.scalars().first()
 
@@ -67,14 +98,32 @@ async def get_user_posts(user_id: int, db: Annotated[AsyncSession, Depends(get_d
             status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
         )
 
+    count_result = await db.execute(
+        select(func.count())
+        .select_from(models.Post)
+        .where(models.Post.user_id == user_id)
+    )
+    total = count_result.scalar() or 0
+
     result = await db.execute(
         select(models.Post)
         .options(selectinload(models.Post.author))
         .where(models.Post.user_id == user_id)
         .order_by(models.Post.date_posted.desc())
+        .offset(skip)
+        .limit(limit)
     )
     posts = result.scalars().all()
-    return posts
+
+    has_more = skip + len(posts) < total
+
+    return PaginatedPostsResponse(
+        posts=[PostResponse.model_validate(post) for post in posts],
+        total=total,
+        skip=skip,
+        limit=limit,
+        has_more=has_more,
+    )
 
 
 # POST /api/users - Create a new user
@@ -236,7 +285,16 @@ async def delete_user(
     await db.commit()
 
     if old_image_file:
-        await run_in_threadpool(delete_profile_picture, old_image_file)
+        try:
+            await delete_profile_picture_from_s3(old_image_file)
+        except ClientError as e:
+            logger.error(
+                f"Failed to delete profile picture '{old_image_file}' from S3 for deleted user {user_id}: {str(e)}"
+            )
+        except Exception as e:
+            logger.error(
+                f"Unexpected error deleting profile picture '{old_image_file}' from S3 for deleted user {user_id}: {str(e)}"
+            )
 
 
 # PATCH /api/users/{user_id}/profile_picture - Update user's profile picture
@@ -253,6 +311,9 @@ async def update_profile_picture(
             detail="You do not have permission to update this user's profile picture",
         )
 
+    # Save the old filename before any operations
+    old_filename = current_user.image_file
+
     content = await file.read()
 
     if len(content) > settings.MAX_UPLOAD_SIZE_BYTES:
@@ -262,21 +323,44 @@ async def update_profile_picture(
         )
 
     try:
-        new_filename = await run_in_threadpool(process_profile_picture, content)
+        processed_bytes, new_filename = await run_in_threadpool(
+            process_profile_picture, content
+        )
     except UnidentifiedImageError as err:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Uploaded file is not a valid image. Please upload a valid image file (JPEG, PNG, GIF, WEBP).",
         ) from err
 
-    old_filename = current_user.image_file
-    current_user.image_file = new_filename
+    # Upload the processed image to S3
+    try:
+        await upload_profile_picture_to_s3(processed_bytes, new_filename)
+    except ClientError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to upload profile picture. Please try again later.",
+        ) from e
 
+    # Update user with new filename
+    current_user.image_file = new_filename
     await db.commit()
     await db.refresh(current_user)
 
+    # Delete old image from S3 (after successful DB commit)
+    # If this fails, log the error but don't interrupt the flow
     if old_filename:
-        await run_in_threadpool(delete_profile_picture, old_filename)
+        logger.info(f"Attempting to delete old profile picture: {old_filename}")
+        try:
+            await delete_profile_picture_from_s3(old_filename)
+            logger.info(f"Successfully deleted old profile picture: {old_filename}")
+        except ClientError as e:
+            logger.error(
+                f"Failed to delete old profile picture '{old_filename}' from S3 for user {user_id}: {str(e)}"
+            )
+        except Exception as e:
+            logger.error(
+                f"Unexpected error deleting old profile picture '{old_filename}' from S3 for user {user_id}: {str(e)}"
+            )
 
     return current_user
 
@@ -305,6 +389,143 @@ async def delete_profile_picture_endpoint(
     await db.commit()
     await db.refresh(current_user)
 
-    await run_in_threadpool(delete_profile_picture, old_filename)
+    # Delete from S3 (after successful DB commit)
+    # If this fails, log the error but don't interrupt the flow
+    try:
+        await delete_profile_picture_from_s3(old_filename)
+    except ClientError as e:
+        logger.error(
+            f"Failed to delete profile picture '{old_filename}' from S3 for user {user_id}: {str(e)}"
+        )
+    except Exception as e:
+        logger.error(
+            f"Unexpected error deleting profile picture '{old_filename}' from S3 for user {user_id}: {str(e)}"
+        )
 
     return current_user
+
+
+# POST /api/users/forgot_password - Request password reset link
+@router.post("/forgot_password", status_code=status.HTTP_202_ACCEPTED)
+async def forgot_password(
+    request_data: ForgotPasswordRequest,
+    background_tasks: BackgroundTasks,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    # Look up user by email (case-insensitive)
+    result = await db.execute(
+        select(models.User).where(
+            func.lower(models.User.email) == request_data.email.lower(),
+        ),
+    )
+    user = result.scalars().first()
+
+    if user:
+        await db.execute(
+            sql_delete(models.PasswordResetToken).where(
+                models.PasswordResetToken.user_id == user.id
+            )
+        )
+
+        token = generate_password_reset_token()
+        token_hash = hash_reset_token(token)
+        expires_at = datetime.now(UTC) + timedelta(
+            minutes=settings.RESET_TOKEN_EXPIRE_MINUTES
+        )
+
+        reset_token_entry = models.PasswordResetToken(
+            user_id=user.id, token_hash=token_hash, expires_at=expires_at
+        )
+
+        db.add(reset_token_entry)
+        await db.commit()
+
+        background_tasks.add_task(
+            send_password_reset_email,
+            to_email=user.email,
+            username=user.username,
+            token=token,
+        )
+
+    return {
+        "message": "If an account with that email exists, a password reset link has been sent."
+    }
+
+
+# POST /api/users/reset_password - Reset password using token
+@router.post("/reset_password", status_code=status.HTTP_200_OK)
+async def reset_password(
+    request_data: ResetPasswordRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    token_hash = hash_reset_token(request_data.token)
+
+    result = await db.execute(
+        select(models.PasswordResetToken).where(
+            models.PasswordResetToken.token_hash == token_hash,
+            models.PasswordResetToken.expires_at > datetime.now(UTC),
+        )
+    )
+    reset_token_entry = result.scalars().first()
+
+    if not reset_token_entry:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired password reset token",
+        )
+
+    if reset_token_entry.expires_at < datetime.now(UTC):
+        await db.delete(reset_token_entry)
+        await db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired password reset token",
+        )
+
+    result = await db.execute(
+        select(models.User).where(models.User.id == reset_token_entry.user_id)
+    )
+    user = result.scalars().first()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+        )
+
+    user.password_hash = hash_password(request_data.new_password)
+
+    await db.execute(
+        sql_delete(models.PasswordResetToken).where(
+            models.PasswordResetToken.user_id == user.id
+        )
+    )
+
+    await db.commit()
+
+    return {
+        "message": "Password has been reset successfully. You can now log in with your new password."
+    }
+
+
+@router.patch("/me/password", status_code=status.HTTP_200_OK)
+async def change_password(
+    password_data: ChangePasswordRequest,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    if not verify_password(password_data.current_password, current_user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current password is incorrect",
+        )
+
+    current_user.password_hash = hash_password(password_data.new_password)
+
+    await db.execute(
+        sql_delete(models.PasswordResetToken).where(
+            models.PasswordResetToken.user_id == current_user.id,
+        ),
+    )
+
+    await db.commit()
+    return {"message": "Password changed successfully"}

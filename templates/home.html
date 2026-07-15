@@ -1,40 +1,135 @@
-{% extends "layout.html" %} {% block content %} {% for post in posts %}
-<article
-  class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md hover:border-gray-300 dark:hover:border-gray-600 transition-all py-3 px-4 mb-4"
->
-  <div class="flex items-start gap-4">
-    <img
-      class="rounded-full w-16 h-16 object-cover border border-gray-200 dark:border-gray-600 shrink-0 ring-2 ring-white dark:ring-gray-800"
-      src="{{ post.author.image_path }}"
-      alt="{{ post.author.username }}'s profile picture"
-      width="64"
-      height="64"
-      loading="lazy"
-    />
-    <div class="flex-1 min-w-0">
-      <div
-        class="flex items-center gap-2 mb-2 pb-0.5 border-b border-gray-200 dark:border-gray-700"
-      >
-        <a
-          class="text-steel dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 font-medium transition-colors"
-          href="{{ url_for('user_posts_page', user_id=post.author.id) }}"
-          >{{ post.author.username }}</a
+{% extends "layout.html" %} {% block content %}
+
+<div id="posts-container" class="max-w-3xl mx-auto">
+  {% for post in posts %}
+  <article
+    class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md hover:border-gray-300 dark:hover:border-gray-600 transition-all py-3 px-4 mb-4"
+  >
+    <div class="flex items-start gap-4">
+      <img
+        class="rounded-full w-16 h-16 object-cover border border-gray-200 dark:border-gray-600 shrink-0 ring-2 ring-white dark:ring-gray-800"
+        src="{{ post.author.image_path }}"
+        alt="{{ post.author.username }}'s profile picture"
+        width="64"
+        height="64"
+        loading="lazy"
+      />
+      <div class="flex-1 min-w-0">
+        <div
+          class="flex items-center gap-2 mb-2 pb-0.5 border-b border-gray-200 dark:border-gray-700"
         >
-        <small class="text-gray-500 dark:text-gray-400 text-xs"
-          >{{ post.date_posted.strftime("%B %d, %Y") }}</small
-        >
+          <a
+            class="text-steel dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 font-medium transition-colors"
+            href="{{ url_for('user_posts_page', user_id=post.author.id) }}"
+            >{{ post.author.username }}</a
+          >
+          <small class="text-gray-500 dark:text-gray-400 text-xs"
+            >{{ post.date_posted.strftime("%B %d, %Y") }}</small
+          >
+        </div>
+        <h2 class="font-heading text-xl mb-1">
+          <a
+            class="text-gray-700 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+            href="{{ url_for('post_detail', post_id=post.id) }}"
+            >{{ post.title }}</a
+          >
+        </h2>
+        <p class="text-gray-600 dark:text-gray-300 text-lg whitespace-pre-line">
+          {{ post.content }}
+        </p>
       </div>
-      <h2 class="font-heading text-xl mb-1">
-        <a
-          class="text-gray-700 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-          href="{{ url_for('post_detail', post_id=post.id) }}"
-          >{{ post.title }}</a
-        >
-      </h2>
-      <p class="text-gray-600 dark:text-gray-300 text-lg whitespace-pre-line">
-        {{ post.content }}
-      </p>
     </div>
-  </div>
-</article>
-{% endfor %} {% endblock content %}
+  </article>
+  {% endfor %}
+</div>
+
+{% if has_more %}
+<div class="flex justify-center my-6">
+  <button
+    id="loadMoreBtn"
+    type="button"
+    class="px-4 py-2 bg-slate-600 text-white rounded hover:bg-slate-700 transition-colors"
+  >
+    Load More
+  </button>
+</div>
+{% endif %} {% endblock content %} {% block scripts %}
+<script type="module">
+  import { escapeHtml, formatDate } from "/static/js/utils.js";
+
+  // Pagination state - initialized from server-rendered values
+  let currentOffset = parseInt("{{ limit }}") || 0;
+  const limit = parseInt("{{ limit }}") || 10;
+  let hasMore =
+    "{{ 'true' if has_more else 'false' }}" === "false" ? false : true;
+
+  const postsContainer = document.getElementById("posts-container");
+  const loadMoreBtn = document.getElementById("loadMoreBtn");
+
+  // Create HTML for a single post (matching server-rendered Tailwind structure)
+  function createPostHTML(post) {
+    return `
+      <article class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md hover:border-gray-300 dark:hover:border-gray-600 transition-all py-3 px-4 mb-4">
+        <div class="flex items-start gap-4">
+          <img class="rounded-full w-16 h-16 object-cover border border-gray-200 dark:border-gray-600 shrink-0 ring-2 ring-white dark:ring-gray-800" src="${escapeHtml(post.author.image_path)}" alt="${escapeHtml(post.author.username)}'s profile picture" width="64" height="64" loading="lazy">
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 mb-2 pb-0.5 border-b border-gray-200 dark:border-gray-700">
+              <a class="text-steel dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 font-medium transition-colors" href="/users/${post.author.id}/posts">${escapeHtml(post.author.username)}</a>
+              <small class="text-gray-500 dark:text-gray-400 text-xs">${formatDate(post.date_posted)}</small>
+            </div>
+            <h2 class="font-heading text-xl mb-1">
+              <a class="text-gray-700 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400 transition-colors" href="/posts/${post.id}">${escapeHtml(post.title)}</a>
+            </h2>
+            <p class="text-gray-600 dark:text-gray-300 text-lg whitespace-pre-line">${escapeHtml(post.content)}</p>
+          </div>
+        </div>
+      </article>
+    `;
+  }
+
+  // Load more posts from the API
+  async function loadMorePosts() {
+    loadMoreBtn.disabled = true;
+    loadMoreBtn.textContent = "Loading...";
+
+    let errorOccurred = false;
+
+    try {
+      const response = await fetch(
+        `/api/posts?skip=${currentOffset}&limit=${limit}`,
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch posts");
+      }
+
+      const data = await response.json();
+
+      for (const post of data.posts) {
+        postsContainer.insertAdjacentHTML("beforeend", createPostHTML(post));
+      }
+
+      currentOffset += data.posts.length;
+      hasMore = data.has_more;
+
+      if (!hasMore) {
+        loadMoreBtn.parentElement.classList.add("hidden");
+      }
+    } catch (error) {
+      errorOccurred = true;
+      console.error("Error loading posts:", error);
+      loadMoreBtn.textContent = "Error - Click to Retry";
+      loadMoreBtn.disabled = false;
+    } finally {
+      if (!errorOccurred && hasMore) {
+        loadMoreBtn.disabled = false;
+        loadMoreBtn.textContent = "Load More";
+      }
+    }
+  }
+
+  if (loadMoreBtn) {
+    loadMoreBtn.addEventListener("click", loadMorePosts);
+  }
+</script>
+{% endblock scripts %}

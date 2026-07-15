@@ -7,6 +7,8 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from database import Base
 
+from config import settings
+
 
 class User(Base):
     __tablename__ = "users"
@@ -25,10 +27,15 @@ class User(Base):
         back_populates="author", cascade="all, delete-orphan"
     )
 
+    reset_tokens: Mapped[list[PasswordResetToken]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+
     @property
     def image_path(self) -> str:
         if self.image_file:
-            return f"/media/profile_pics/{self.image_file}"
+            return f"https://{settings.S3_BUCKET_NAME}.s3.{settings.S3_REGION_NAME}.amazonaws.com/profile_pics/{self.image_file}"
         return "/static/profile_pics/default.jpg"
 
 
@@ -47,5 +54,26 @@ class Post(Base):
         DateTime(timezone=True),
         default=lambda: datetime.now(UTC),
     )
+    likes: Mapped[int] = mapped_column(
+        Integer, default=0, nullable=False, server_default="0"
+    )
 
     author: Mapped[User] = relationship(back_populates="posts")
+
+
+class PasswordResetToken(Base):
+    __tablename__ = "password_reset_tokens"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(UTC),
+    )
+
+    user: Mapped[User] = relationship(back_populates="reset_tokens")
